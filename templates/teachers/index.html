@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Teacher Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Faculty & Teachers</h2>
+    <div class="page-subtitle">Manage academic staff, department assignments, and class instructors</div>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    {% if session.get('role') == 'Admin' %}
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+      <i class="fas fa-plus me-1"></i>Add Teacher
+    </button>
+    {% endif %}
+    <a href="{{ url_for('teachers.export_excel') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-download me-1"></i>Export
+    </a>
+  </div>
+</div>
+
+<!-- Search & Filter Bar -->
+<div class="card mb-4">
+  <div class="card-body p-3">
+    <form method="GET" action="{{ url_for('teachers.index') }}" class="row g-2 align-items-center">
+      <div class="col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-light text-muted"><i class="fas fa-search"></i></span>
+          <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search by name, ID, email...">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <select class="form-select form-select-sm" name="department">
+          <option value="">All Departments</option>
+          <option value="Science" {% if department == 'Science' %}selected{% endif %}>Science</option>
+          <option value="Computer Science" {% if department == 'Computer Science' %}selected{% endif %}>Computer Science</option>
+          <option value="Humanities" {% if department == 'Humanities' %}selected{% endif %}>Humanities</option>
+          <option value="Commerce" {% if department == 'Commerce' %}selected{% endif %}>Commerce</option>
+        </select>
+      </div>
+
+      <div class="col-md-3">
+        <select class="form-select form-select-sm" name="status">
+          <option value="">All Statuses</option>
+          <option value="Active" {% if status == 'Active' %}selected{% endif %}>Active</option>
+          <option value="Inactive" {% if status == 'Inactive' %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+
+      <div class="col-md-1 d-flex gap-1">
+        <button type="submit" class="btn btn-primary btn-sm w-100" title="Apply Filter">
+          <i class="fas fa-filter"></i>
+        </button>
+        <a href="{{ url_for('teachers.index') }}" class="btn btn-light btn-sm border" title="Reset Filters">
+          <i class="fas fa-redo"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Teachers Data Table -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Teacher ID</th>
+          <th>Full Name</th>
+          <th>Department & Role</th>
+          <th>Contact Information</th>
+          <th>Assigned Classes</th>
+          <th>Assigned Subjects</th>
+          <th>Status</th>
+          {% if session.get('role') == 'Admin' %}
+          <th class="text-end">Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% if teachers %}
+          {% for t in teachers %}
+          <tr>
+            <td><code class="text-primary fw-semibold">{{ t.Teacher_ID }}</code></td>
+            <td>
+              <strong class="text-dark">{{ t.Full_Name }}</strong>
+            </td>
+            <td>
+              <div class="fw-semibold text-dark">{{ t.Department }}</div>
+              <small class="text-muted">{{ t.Designation or 'Lecturer' }}</small>
+            </td>
+            <td>
+              <div class="small text-muted"><i class="fas fa-envelope me-1"></i>{{ t.Email }}</div>
+              <div class="small text-muted"><i class="fas fa-phone me-1"></i>{{ t.Phone }}</div>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ t.Assigned_Classes or 'None' }}</span></td>
+            <td><small class="text-secondary">{{ t.Assigned_Subjects or 'None' }}</small></td>
+            <td>{{ t.Status | status_badge | safe }}</td>
+
+            {% if session.get('role') == 'Admin' %}
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-light border text-primary" data-bs-toggle="modal" data-bs-target="#editTeacherModal{{ t.Teacher_ID }}" title="Edit Teacher">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="btn btn-light border text-danger" data-bs-toggle="modal" data-bs-target="#deleteTeacherModal{{ t.Teacher_ID }}" title="Delete Teacher">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+
+              <!-- Edit Teacher Modal -->
+              <div class="modal fade" id="editTeacherModal{{ t.Teacher_ID }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header">
+                      <h5 class="modal-title"><i class="fas fa-edit text-primary me-2"></i>Edit Faculty Member</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('teachers.edit', teacher_id=t.Teacher_ID) }}" method="POST">
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-md-12">
+                            <label class="form-label small fw-semibold text-danger">Full Name *</label>
+                            <input type="text" class="form-control" name="Full_Name" value="{{ t.Full_Name }}" required>
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Email</label>
+                            <input type="email" class="form-control" name="Email" value="{{ t.Email }}">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Phone</label>
+                            <input type="text" class="form-control" name="Phone" value="{{ t.Phone }}">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Department</label>
+                            <input type="text" class="form-control" name="Department" value="{{ t.Department }}">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Designation</label>
+                            <input type="text" class="form-control" name="Designation" value="{{ t.Designation }}">
+                          </div>
+                          <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Assigned Classes</label>
+                            <input type="text" class="form-control" name="Assigned_Classes" value="{{ t.Assigned_Classes }}" placeholder="e.g. Grade 10-A, Grade 11-A">
+                          </div>
+                          <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Assigned Subjects</label>
+                            <input type="text" class="form-control" name="Assigned_Subjects" value="{{ t.Assigned_Subjects }}" placeholder="e.g. Physics, Mathematics">
+                          </div>
+                          <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select class="form-select" name="Status">
+                              <option value="Active" {% if t.Status == 'Active' %}selected{% endif %}>Active</option>
+                              <option value="Inactive" {% if t.Status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Delete Teacher Modal -->
+              <div class="modal fade" id="deleteTeacherModal{{ t.Teacher_ID }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header border-0 pb-0">
+                      <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Delete Teacher</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                      <p>Delete faculty profile for <strong>{{ t.Full_Name }}</strong> (ID: {{ t.Teacher_ID }})?</p>
+                      <p class="small text-muted mb-0">This record will be safely removed from <code>teachers.xlsx</code> with an automatic backup preserved.</p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                      <form action="{{ url_for('teachers.delete', teacher_id=t.Teacher_ID) }}" method="POST">
+                        <button type="submit" class="btn btn-danger btn-sm">Confirm Delete</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" class="text-center py-4 text-muted">No faculty members found. Click "Add Teacher" to register.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Teacher Modal -->
+{% if session.get('role') == 'Admin' %}
+<div class="modal fade" id="addTeacherModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-chalkboard-teacher text-primary me-2"></i>Add Faculty Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('teachers.add') }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold text-danger">Full Name *</label>
+              <input type="text" class="form-control" name="Full_Name" placeholder="e.g. Dr. Emily Watson" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Email</label>
+              <input type="email" class="form-control" name="Email" placeholder="emily.w@apexcollege.edu">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Phone</label>
+              <input type="text" class="form-control" name="Phone" placeholder="+1-555-0192">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Department</label>
+              <input type="text" class="form-control" name="Department" placeholder="e.g. Science">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Designation</label>
+              <input type="text" class="form-control" name="Designation" placeholder="e.g. Associate Professor">
+            </div>
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold">Assigned Classes</label>
+              <input type="text" class="form-control" name="Assigned_Classes" placeholder="e.g. Grade 10-A, Grade 11-A">
+            </div>
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold">Assigned Subjects</label>
+              <input type="text" class="form-control" name="Assigned_Subjects" placeholder="e.g. Physics, Chemistry">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save Faculty Member</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

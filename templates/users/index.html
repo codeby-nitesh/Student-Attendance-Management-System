@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}User & Role Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">User Accounts & Roles</h2>
+    <div class="page-subtitle">Manage administrative, faculty, and attendance staff credentials</div>
+  </div>
+
+  <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+    <i class="fas fa-user-plus me-1"></i>Add New User
+  </button>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>User ID</th>
+          <th>Username</th>
+          <th>Full Name</th>
+          <th>Email Address</th>
+          <th>Assigned Role</th>
+          <th>Account Status</th>
+          <th>Last Login</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if users %}
+          {% for u in users %}
+          <tr>
+            <td><code class="text-primary fw-semibold">{{ u.user_id }}</code></td>
+            <td><strong>{{ u.username }}</strong></td>
+            <td>{{ u.full_name }}</td>
+            <td><small class="text-muted">{{ u.email }}</small></td>
+            <td>
+              {% if u.role == 'Admin' %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-shield-alt me-1"></i>Admin</span>
+              {% elif u.role == 'Teacher' %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-chalkboard-teacher me-1"></i>Teacher</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-user-clock me-1"></i>Staff</span>
+              {% endif %}
+            </td>
+            <td>{{ u.status | status_badge | safe }}</td>
+            <td><small class="text-muted">{{ u.last_login or 'Never' }}</small></td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-light border text-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ u.user_id }}" title="Edit User">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="btn btn-light border text-warning" data-bs-toggle="modal" data-bs-target="#resetPasswordModal{{ u.user_id }}" title="Reset Password">
+                  <i class="fas fa-key"></i>
+                </button>
+              </div>
+
+              <!-- Edit User Modal -->
+              <div class="modal fade" id="editUserModal{{ u.user_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header">
+                      <h5 class="modal-title"><i class="fas fa-user-edit text-primary me-2"></i>Edit User: {{ u.username }}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('users.edit', user_id=u.user_id) }}" method="POST">
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Full Name</label>
+                            <input type="text" class="form-control" name="full_name" value="{{ u.full_name }}" required>
+                          </div>
+                          <div class="col-md-12">
+                            <label class="form-label small fw-semibold">Email Address</label>
+                            <input type="email" class="form-control" name="email" value="{{ u.email }}" required>
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Role</label>
+                            <select class="form-select" name="role">
+                              <option value="Admin" {% if u.role == 'Admin' %}selected{% endif %}>Admin</option>
+                              <option value="Teacher" {% if u.role == 'Teacher' %}selected{% endif %}>Teacher</option>
+                              <option value="Attendance Staff" {% if u.role == 'Attendance Staff' %}selected{% endif %}>Attendance Staff</option>
+                            </select>
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Status</label>
+                            <select class="form-select" name="status">
+                              <option value="Active" {% if u.status == 'Active' %}selected{% endif %}>Active</option>
+                              <option value="Inactive" {% if u.status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reset Password Modal -->
+              <div class="modal fade" id="resetPasswordModal{{ u.user_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header">
+                      <h5 class="modal-title"><i class="fas fa-key text-warning me-2"></i>Reset Password for {{ u.username }}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('users.reset_password', user_id=u.user_id) }}" method="POST">
+                      <div class="modal-body">
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">New Temporary Password</label>
+                          <input type="password" class="form-control" name="new_password" placeholder="At least 6 characters" minlength="6" required>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning btn-sm">Reset Password</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-user-plus text-primary me-2"></i>Create New User Account</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('users.add') }}" method="POST">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-danger">Username *</label>
+              <input type="text" class="form-control" name="username" placeholder="e.g. jdoe" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold text-danger">Password *</label>
+              <input type="password" class="form-control" name="password" minlength="6" required>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold text-danger">Full Name *</label>
+              <input type="text" class="form-control" name="full_name" placeholder="e.g. John Doe" required>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold">Email Address</label>
+              <input type="email" class="form-control" name="email" placeholder="john.doe@apexcollege.edu">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Role</label>
+              <select class="form-select" name="role">
+                <option value="Attendance Staff">Attendance Staff</option>
+                <option value="Teacher">Teacher</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Status</label>
+              <select class="form-select" name="status">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Create Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

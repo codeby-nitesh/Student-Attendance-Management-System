@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Executive Dashboard</h2>
+    <div class="page-subtitle">Real-time attendance intelligence & academic analytics</div>
+  </div>
+
+  <!-- Date Selector -->
+  <form id="dashboardDateForm" method="GET" action="{{ url_for('dashboard.index') }}" class="d-flex align-items-center gap-2">
+    <label for="dashboardDateSelector" class="form-label small text-muted mb-0 fw-semibold">Target Date:</label>
+    <div class="input-group input-group-sm">
+      <span class="input-group-text bg-white"><i class="far fa-calendar-alt text-primary"></i></span>
+      <input type="date" class="form-control form-control-sm" id="dashboardDateSelector" name="date" value="{{ target_date }}">
+    </div>
+  </form>
+</div>
+
+<!-- Key Performance Metric Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card stat-card h-100">
+      <div class="stat-icon primary">
+        <i class="fas fa-user-graduate"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ metrics.total_students }}</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card stat-card h-100">
+      <div class="stat-icon success">
+        <i class="fas fa-user-check"></i>
+      </div>
+      <div>
+        <div class="stat-value text-success">{{ metrics.present_count }}</div>
+        <div class="stat-label">Present Today</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card stat-card h-100">
+      <div class="stat-icon danger">
+        <i class="fas fa-user-times"></i>
+      </div>
+      <div>
+        <div class="stat-value text-danger">{{ metrics.absent_count }}</div>
+        <div class="stat-label">Absent Today</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card stat-card h-100">
+      <div class="stat-icon warning">
+        <i class="fas fa-user-clock"></i>
+      </div>
+      <div>
+        <div class="stat-value text-warning">{{ metrics.late_count }}</div>
+        <div class="stat-label">Late Arrivals</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card stat-card h-100">
+      <div class="stat-icon info">
+        <i class="fas fa-calendar-minus"></i>
+      </div>
+      <div>
+        <div class="stat-value text-info">{{ metrics.leave_count }}</div>
+        <div class="stat-label">On Leave</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-2 col-md-4 col-sm-6">
+    <div class="card stat-card h-100">
+      <div class="stat-icon primary">
+        <i class="fas fa-percentage"></i>
+      </div>
+      <div>
+        <div class="stat-value text-primary">{{ metrics.attendance_pct }}%</div>
+        <div class="stat-label">Today's Rate</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-4">
+  <!-- 7-Day Attendance Trend Chart -->
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header">
+        <span><i class="fas fa-chart-line text-primary me-2"></i>7-Day Attendance Trend</span>
+        <span class="badge bg-light text-secondary border">Trailing Week</span>
+      </div>
+      <div class="card-body">
+        <div style="height: 300px;">
+          <canvas id="attendanceTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Status Doughnut Chart -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <span><i class="fas fa-chart-pie text-primary me-2"></i>Status Breakdown</span>
+        <span class="badge bg-light text-secondary border">{{ target_date }}</span>
+      </div>
+      <div class="card-body d-flex flex-column align-items-center justify-content-center">
+        <div style="height: 220px; width: 100%;">
+          <canvas id="todayStatusDoughnut"></canvas>
+        </div>
+        <div class="mt-3 text-center small text-muted">
+          Total sessions logged on this date: <strong>{{ metrics.total_marked }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Secondary Analytics and Recent Activity -->
+<div class="row g-4 mb-4">
+  <!-- Class-wise Attendance Performance -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header">
+        <span><i class="fas fa-chart-bar text-primary me-2"></i>Class-Wise Performance</span>
+        <span class="badge bg-light text-secondary border">Target Date Comparison</span>
+      </div>
+      <div class="card-body">
+        <div style="height: 260px;">
+          <canvas id="classWiseChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions & System Info -->
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">
+        <span><i class="fas fa-bolt text-warning me-2"></i>Quick Actions</span>
+      </div>
+      <div class="card-body d-flex flex-column gap-3 justify-content-center">
+        <a href="{{ url_for('attendance.mark') }}" class="btn btn-outline-primary d-flex align-items-center justify-content-between p-3 text-start">
+          <div class="d-flex align-items-center gap-3">
+            <i class="fas fa-clipboard-check fs-4 text-primary"></i>
+            <div>
+              <div class="fw-bold">Mark Daily Attendance</div>
+              <small class="text-muted">Take roster attendance for a class session</small>
+            </div>
+          </div>
+          <i class="fas fa-arrow-right text-muted"></i>
+        </a>
+
+        <a href="{{ url_for('students.add') }}" class="btn btn-outline-success d-flex align-items-center justify-content-between p-3 text-start">
+          <div class="d-flex align-items-center gap-3">
+            <i class="fas fa-user-plus fs-4 text-success"></i>
+            <div>
+              <div class="fw-bold">Register New Student</div>
+              <small class="text-muted">Enroll a student into a class roster</small>
+            </div>
+          </div>
+          <i class="fas fa-arrow-right text-muted"></i>
+        </a>
+
+        <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary d-flex align-items-center justify-content-between p-3 text-start">
+          <div class="d-flex align-items-center gap-3">
+            <i class="fas fa-file-invoice fs-4 text-secondary"></i>
+            <div>
+              <div class="fw-bold">Generate Reports & Analytics</div>
+              <small class="text-muted">Export Excel sheets and PDF summaries</small>
+            </div>
+          </div>
+          <i class="fas fa-arrow-right text-muted"></i>
+        </a>
+
+        {% if session.get('role') == 'Admin' %}
+        <a href="{{ url_for('excel_center.index') }}" class="btn btn-outline-dark d-flex align-items-center justify-content-between p-3 text-start">
+          <div class="d-flex align-items-center gap-3">
+            <i class="fas fa-database fs-4 text-dark"></i>
+            <div>
+              <div class="fw-bold">Excel Data Center</div>
+              <small class="text-muted">Manage workbooks, downloads, and backups</small>
+            </div>
+          </div>
+          <i class="fas fa-arrow-right text-muted"></i>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent Attendance Activity Feed -->
+<div class="card">
+  <div class="card-header">
+    <span><i class="fas fa-history text-primary me-2"></i>Recent Attendance Entries (From Live Excel Storage)</span>
+    <a href="{{ url_for('attendance.records') }}" class="btn btn-sm btn-link text-primary text-decoration-none">
+      View All Records <i class="fas fa-chevron-right ms-1"></i>
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Attendance ID</th>
+          <th>Student Name</th>
+          <th>Class & Section</th>
+          <th>Subject & Period</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Recorded By</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if metrics.recent_activity %}
+          {% for r in metrics.recent_activity %}
+          <tr>
+            <td><code class="text-primary fw-semibold">{{ r.Attendance_ID }}</code></td>
+            <td>
+              <div class="fw-semibold text-dark">{{ r.Student_Name }}</div>
+              <small class="text-muted">{{ r.Student_ID }}</small>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ r.Class }} - Sec {{ r.Section }}</span></td>
+            <td>{{ r.Subject }} <small class="text-muted">({{ r.Period }})</small></td>
+            <td><span class="small">{{ r.Date }}</span></td>
+            <td>{{ r.Status | status_badge | safe }}</td>
+            <td><small class="text-muted">{{ r.Marked_By }}</small></td>
+            <td><small class="text-secondary">{{ r.Remarks or '—' }}</small></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="8" class="text-center py-4 text-muted">
+              <i class="fas fa-inbox fa-2x mb-2 d-block text-secondary"></i>
+              No attendance records logged yet.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.dashboardTrendData = {{ metrics.trend | tojson }};
+  window.dashboardClassData = {{ metrics.class_stats | tojson }};
+  window.dashboardStatusData = {
+    present: {{ metrics.present_count }},
+    absent: {{ metrics.absent_count }},
+    late: {{ metrics.late_count }},
+    leave: {{ metrics.leave_count }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Excel Data Center{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Excel Data Center</h2>
+    <div class="page-subtitle">Centralized workbook administration, integrity checks, schemas, and backup restoration</div>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <form action="{{ url_for('excel_center.create_backup') }}" method="POST" class="d-inline">
+      <input type="hidden" name="workbook_name" value="">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="fas fa-shield-alt me-1"></i>Backup All Workbooks Now
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Concurrency & Architecture Callout -->
+<div class="card mb-4 border-info-subtle bg-info-subtle bg-opacity-10">
+  <div class="card-body p-3 d-flex align-items-start gap-3">
+    <i class="fas fa-info-circle fa-2x text-info mt-1"></i>
+    <div class="small">
+      <h6 class="fw-bold mb-1 text-dark">Excel File Storage Architecture & Multi-User Synchronization</h6>
+      <p class="mb-1 text-secondary">
+        All institutional application records are directly stored inside pure OpenPyXL/Pandas Excel workbooks (<code>data/*.xlsx</code>).
+        To ensure strict enterprise-grade integrity, safe file operations are enforced via an re-entrant file lock (<code>threading.RLock</code>) and atomic write-replace buffers that guard against sudden power cuts, partial writes, or concurrent file access collisions.
+      </p>
+      <span class="text-muted">Automatic timestamped backups are generated inside <code>backups/</code> prior to every major transactional write.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Workbooks Overview Table -->
+<div class="card mb-4">
+  <div class="card-header">
+    <span><i class="fas fa-table text-success me-2"></i>Active Excel Workbooks (7 Systems Online)</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Workbook</th>
+          <th>File Path</th>
+          <th>Total Records</th>
+          <th>Schema Columns</th>
+          <th>File Size</th>
+          <th>Last Modified</th>
+          <th>Integrity Status</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in stats %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-file-excel text-success fa-lg"></i>
+              <div>
+                <strong class="text-dark">{{ w.filename }}</strong>
+                <div class="text-muted small">{{ w.name.capitalize() }} Schema</div>
+              </div>
+            </div>
+          </td>
+          <td><code>data/{{ w.filename }}</code></td>
+          <td><span class="badge bg-light text-dark border fw-bold">{{ w.row_count }} rows</span></td>
+          <td><small class="text-secondary">{{ w.columns_count }} fields</small></td>
+          <td><small class="text-secondary">{{ w.size_kb }} KB</small></td>
+          <td><small class="text-muted">{{ w.last_modified }}</small></td>
+          <td>
+            {% if w.status == 'Healthy' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>Healthy</span>
+            {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-times-circle me-1"></i>{{ w.status }}</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <a href="{{ url_for('excel_center.download_workbook', workbook_name=w.name) }}" class="btn btn-light border text-primary" title="Download Live Workbook (.xlsx)">
+                <i class="fas fa-download"></i>
+              </a>
+              <a href="{{ url_for('excel_center.download_template', schema_name=w.name) }}" class="btn btn-light border text-secondary" title="Download Blank Template (.xlsx)">
+                <i class="fas fa-file-invoice"></i>
+              </a>
+              <button type="button" class="btn btn-light border text-warning" data-bs-toggle="modal" data-bs-target="#uploadModal{{ w.name }}" title="Upload & Validate Workbook">
+                <i class="fas fa-upload"></i>
+              </button>
+            </div>
+
+            <!-- Upload & Replace Modal -->
+            <div class="modal fade" id="uploadModal{{ w.name }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content text-start">
+                  <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-upload text-warning me-2"></i>Replace {{ w.filename }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <form action="{{ url_for('excel_center.upload_workbook', workbook_name=w.name) }}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                      <div class="alert alert-warning small mb-3">
+                        <i class="fas fa-exclamation-triangle me-1"></i>This will validate and replace all rows in <code>{{ w.filename }}</code>. An automatic backup of the current file will be retained in <code>backups/</code>.
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-semibold">Select New Excel File (.xlsx)</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx, .xls" required>
+                      </div>
+                      <div class="small text-muted">
+                        Required Columns: <code>{{ schemas[w.name] | join(', ') }}</code>
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-warning btn-sm">Validate & Replace</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Backups & Disaster Recovery Management -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="fas fa-history text-primary me-2"></i>Available Snapshots & Backups ({{ backups|length }} Files)</span>
+    <small class="text-muted">Storage location: <code>backups/</code></small>
+  </div>
+  <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="sticky-top">
+        <tr>
+          <th>Snapshot Filename</th>
+          <th>Source Workbook</th>
+          <th>Created Timestamp</th>
+          <th>Size</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if backups %}
+          {% for b in backups %}
+          <tr>
+            <td><code class="text-dark">{{ b.filename }}</code></td>
+            <td><span class="badge bg-light text-dark border">{{ b.source.capitalize() }}</span></td>
+            <td><span class="small">{{ b.created_at }}</span></td>
+            <td><small class="text-secondary">{{ b.size_kb }} KB</small></td>
+            <td class="text-end">
+              <button type="button" class="btn btn-outline-warning btn-sm py-0" data-bs-toggle="modal" data-bs-target="#restoreModal{{ loop.index }}">
+                <i class="fas fa-undo me-1"></i>Restore Snapshot
+              </button>
+
+              <!-- Restore Confirmation Modal -->
+              <div class="modal fade" id="restoreModal{{ loop.index }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header border-0 pb-0">
+                      <h5 class="modal-title text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Snapshot Restoration</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                      <p>Restore <strong>{{ b.source }}.xlsx</strong> from snapshot: <code>{{ b.filename }}</code>?</p>
+                      <p class="small text-muted mb-0">The current live version will also be backed up before restoration to prevent accidental data loss.</p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                      <form action="{{ url_for('excel_center.restore_backup') }}" method="POST">
+                        <input type="hidden" name="backup_filename" value="{{ b.filename }}">
+                        <button type="submit" class="btn btn-warning btn-sm">Yes, Restore Workbook</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center py-4 text-muted">No snapshots created yet. Click "Backup All Workbooks Now" to create your first snapshot.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

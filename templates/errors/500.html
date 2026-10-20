@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}500 - Internal Server Error{% endblock %}
+{% block content %}
+<div class="card p-5 text-center max-w-600 mx-auto my-5">
+  <div class="text-warning mb-3">
+    <i class="fas fa-exclamation-triangle fa-4x"></i>
+  </div>
+  <h2 class="fw-bold">500 - System Error</h2>
+  <p class="text-muted">An unexpected error occurred while processing your request. Automatic safeguards prevented workbook corruption.</p>
+  <div>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary px-4"><i class="fas fa-home me-1"></i>Return to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

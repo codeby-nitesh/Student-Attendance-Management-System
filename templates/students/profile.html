@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.Full_Name }} - Student Profile{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">{{ student.Full_Name }}</h2>
+    <div class="page-subtitle">Student 360 Attendance Profile & Academic Audit</div>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('student_profile.export_pdf', student_id=student.Student_ID) }}" class="btn btn-danger btn-sm">
+      <i class="fas fa-file-pdf me-1"></i>Download PDF Report
+    </a>
+    <a href="{{ url_for('students.edit', student_id=student.Student_ID) }}" class="btn btn-outline-primary btn-sm">
+      <i class="fas fa-edit me-1"></i>Edit Profile
+    </a>
+    <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+  </div>
+</div>
+
+<!-- Low Attendance Threshold Warning Alert -->
+{% if stats.is_low_attendance %}
+<div class="alert alert-danger d-flex align-items-center gap-3 shadow-sm mb-4" role="alert">
+  <i class="fas fa-exclamation-triangle fa-2x"></i>
+  <div>
+    <h6 class="alert-heading fw-bold mb-1">Critical Low Attendance Alert!</h6>
+    <div>This student has an overall attendance rate of <strong>{{ stats.percentage }}%</strong>, which is below the institution's mandatory threshold of <strong>{{ stats.threshold }}%</strong>. Disciplinary or advisory notice recommended.</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Student Info & Metric Cards -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-4">
+    <div class="card h-100 p-4">
+      <div class="text-center mb-3">
+        <div class="avatar-initials mx-auto mb-2" style="width: 72px; height: 72px; font-size: 1.75rem;">
+          {{ student.Full_Name[0] }}
+        </div>
+        <h5 class="fw-bold mb-1">{{ student.Full_Name }}</h5>
+        <div class="text-muted small">Roll No: <strong>{{ student.Roll_No }}</strong> | ID: <code>{{ student.Student_ID }}</code></div>
+        <div class="mt-2">
+          {{ student.Status | status_badge | safe }}
+          <span class="badge bg-light text-dark border">{{ student.Class }} - Sec {{ student.Section }}</span>
+        </div>
+      </div>
+      <hr class="my-2">
+      <div class="small text-muted py-2">
+        <div class="mb-2"><i class="fas fa-book text-primary me-2"></i><strong>Course:</strong> {{ student.Course or 'General' }}</div>
+        <div class="mb-2"><i class="fas fa-envelope text-primary me-2"></i><strong>Email:</strong> {{ student.Email or 'Not provided' }}</div>
+        <div class="mb-2"><i class="fas fa-phone text-primary me-2"></i><strong>Phone:</strong> {{ student.Phone or 'Not provided' }}</div>
+        <div><i class="fas fa-calendar-check text-primary me-2"></i><strong>Admission Date:</strong> {{ student.Admission_Date }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="row g-3 mb-3">
+      <div class="col-sm-4">
+        <div class="card stat-card h-100">
+          <div class="stat-icon {% if stats.is_low_attendance %}danger{% else %}success{% endif %}">
+            <i class="fas fa-percent"></i>
+          </div>
+          <div>
+            <div class="stat-value {% if stats.is_low_attendance %}text-danger{% else %}text-success{% endif %}">{{ stats.percentage }}%</div>
+            <div class="stat-label">Attendance Rate</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card stat-card h-100">
+          <div class="stat-icon primary">
+            <i class="fas fa-calendar-alt"></i>
+          </div>
+          <div>
+            <div class="stat-value text-primary">{{ stats.total_sessions }}</div>
+            <div class="stat-label">Total Sessions</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card stat-card h-100">
+          <div class="stat-icon success">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div>
+            <div class="stat-value text-success">{{ stats.present_count }}</div>
+            <div class="stat-label">Present Days</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card stat-card h-100">
+          <div class="stat-icon danger">
+            <i class="fas fa-times-circle"></i>
+          </div>
+          <div>
+            <div class="stat-value text-danger">{{ stats.absent_count }}</div>
+            <div class="stat-label">Absent Days</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card stat-card h-100">
+          <div class="stat-icon warning">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div>
+            <div class="stat-value text-warning">{{ stats.late_count }}</div>
+            <div class="stat-label">Late Arrivals</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="card stat-card h-100">
+          <div class="stat-icon info">
+            <i class="fas fa-calendar-minus"></i>
+          </div>
+          <div>
+            <div class="stat-value text-info">{{ stats.leave_count }}</div>
+            <div class="stat-label">Approved Leave</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly Attendance Calendar Heatmap -->
+    <div class="card">
+      <div class="card-header">
+        <span><i class="far fa-calendar-alt text-primary me-2"></i>{{ month_name }} — Attendance Heatmap</span>
+        <div class="d-flex align-items-center gap-2 small">
+          <span class="d-inline-flex align-items-center gap-1"><span class="calendar-status-dot bg-success"></span> Present</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="calendar-status-dot bg-danger"></span> Absent</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="calendar-status-dot bg-warning"></span> Late</span>
+          <span class="d-inline-flex align-items-center gap-1"><span class="calendar-status-dot bg-info"></span> Leave</span>
+        </div>
+      </div>
+      <div class="card-body p-3">
+        <div class="calendar-grid">
+          <div class="calendar-day-header">Sun</div>
+          <div class="calendar-day-header">Mon</div>
+          <div class="calendar-day-header">Tue</div>
+          <div class="calendar-day-header">Wed</div>
+          <div class="calendar-day-header">Thu</div>
+          <div class="calendar-day-header">Fri</div>
+          <div class="calendar-day-header">Sat</div>
+
+          {% for week in month_days %}
+            {% for day in week %}
+              {% if day == 0 %}
+                <div class="calendar-day-cell inactive"></div>
+              {% else %}
+                {% set day_str = "%04d-%02d-%02d"|format(current_year, current_month, day) %}
+                {% set status = calendar_events.get(day_str, '') %}
+                <div class="calendar-day-cell {% if status == 'Present' %}is-present{% elif status == 'Absent' %}is-absent{% elif status == 'Late' %}is-late{% elif status == 'Leave' %}is-leave{% endif %}">
+                  <span class="calendar-day-num text-muted">{{ day }}</span>
+                  {% if status == 'Present' %}
+                    <span class="calendar-status-dot bg-success" title="Present on {{ day_str }}"></span>
+                  {% elif status == 'Absent' %}
+                    <span class="calendar-status-dot bg-danger" title="Absent on {{ day_str }}"></span>
+                  {% elif status == 'Late' %}
+                    <span class="calendar-status-dot bg-warning" title="Late on {{ day_str }}"></span>
+                  {% elif status == 'Leave' %}
+                    <span class="calendar-status-dot bg-info" title="Leave on {{ day_str }}"></span>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detailed Attendance History Log -->
+<div class="card">
+  <div class="card-header">
+    <span><i class="fas fa-history text-primary me-2"></i>Attendance Log History ({{ history|length }} Entries)</span>
+  </div>
+  <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="sticky-top">
+        <tr>
+          <th>Date</th>
+          <th>Period</th>
+          <th>Subject</th>
+          <th>Status</th>
+          <th>Marked By</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if history %}
+          {% for h in history %}
+          <tr>
+            <td><strong>{{ h.Date }}</strong></td>
+            <td><span class="badge bg-light text-dark border">{{ h.Period }}</span></td>
+            <td>{{ h.Subject }}</td>
+            <td>{{ h.Status | status_badge | safe }}</td>
+            <td><small class="text-muted">{{ h.Marked_By }}</small></td>
+            <td><small class="text-secondary">{{ h.Remarks or '—' }}</small></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">No attendance sessions recorded for this student yet.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

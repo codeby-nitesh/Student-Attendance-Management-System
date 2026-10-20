@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">User Profile</h2>
+    <div class="page-subtitle">Manage your personal details and account credentials</div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card h-100 text-center p-4">
+      <div class="avatar-initials mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+        {{ user.full_name[0] }}
+      </div>
+      <h5 class="fw-bold mb-1">{{ user.full_name }}</h5>
+      <p class="text-muted small mb-2">@{{ user.username }}</p>
+      <div>
+        <span class="badge bg-primary-subtle text-primary">{{ user.role }}</span>
+        <span class="badge bg-success-subtle text-success">{{ user.status }}</span>
+      </div>
+      <hr class="my-3">
+      <div class="text-start small text-muted">
+        <div class="mb-2"><i class="fas fa-id-badge text-primary me-2"></i><strong>User ID:</strong> {{ user.user_id }}</div>
+        <div class="mb-2"><i class="fas fa-envelope text-primary me-2"></i><strong>Email:</strong> {{ user.email }}</div>
+        <div class="mb-2"><i class="fas fa-calendar-alt text-primary me-2"></i><strong>Member Since:</strong> {{ user.created_at[:10] }}</div>
+        <div><i class="fas fa-clock text-primary me-2"></i><strong>Last Login:</strong> {{ user.last_login or 'First Session' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <!-- Edit Information Form -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span><i class="fas fa-user-edit text-primary me-2"></i>Edit Information</span>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('auth.profile') }}">
+          <input type="hidden" name="action" value="update_info">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Username</label>
+              <input type="text" class="form-control bg-light" value="{{ user.username }}" readonly disabled>
+              <small class="text-muted">Username cannot be changed.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Role</label>
+              <input type="text" class="form-control bg-light" value="{{ user.role }}" readonly disabled>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Full Name</label>
+              <input type="text" class="form-control" name="full_name" value="{{ user.full_name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Email Address</label>
+              <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
+            </div>
+            <div class="col-12 text-end">
+              <button type="submit" class="btn btn-primary px-4">
+                <i class="fas fa-save me-1"></i>Save Changes
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Change Password Form -->
+    <div class="card">
+      <div class="card-header">
+        <span><i class="fas fa-key text-warning me-2"></i>Change Password</span>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('auth.profile') }}">
+          <input type="hidden" name="action" value="change_password">
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label small fw-semibold">Current Password</label>
+              <input type="password" class="form-control" name="current_password" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">New Password</label>
+              <input type="password" class="form-control" name="new_password" minlength="6" required>
+              <small class="text-muted">Minimum 6 characters.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Confirm New Password</label>
+              <input type="password" class="form-control" name="confirm_password" minlength="6" required>
+            </div>
+            <div class="col-12 text-end">
+              <button type="submit" class="btn btn-warning px-4 text-dark fw-medium">
+                <i class="fas fa-lock me-1"></i>Update Password
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

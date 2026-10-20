@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Reports & Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Attendance Reports & Analytics</h2>
+    <div class="page-subtitle">Aggregated attendance intelligence, compliance audits, and export tools</div>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('reports.export_excel', type=report_type, date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter) }}" class="btn btn-outline-success btn-sm">
+      <i class="fas fa-file-excel me-1"></i>Export Excel
+    </a>
+    <a href="{{ url_for('reports.export_pdf', type=report_type, date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter) }}" class="btn btn-outline-danger btn-sm">
+      <i class="fas fa-file-pdf me-1"></i>Export PDF
+    </a>
+  </div>
+</div>
+
+<!-- Report Navigation Tabs & Filters -->
+<div class="card mb-4">
+  <div class="card-header border-0 pb-0 bg-white">
+    <ul class="nav nav-tabs card-header-tabs">
+      <li class="nav-item">
+        <a class="nav-link {% if report_type == 'student_summary' %}active fw-bold text-primary{% else %}text-secondary{% endif %}" href="{{ url_for('reports.index', type='student_summary', date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter) }}">
+          <i class="fas fa-users me-1"></i>Student Summary
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if report_type == 'low_attendance' %}active fw-bold text-danger{% else %}text-secondary{% endif %}" href="{{ url_for('reports.index', type='low_attendance', date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter) }}">
+          <i class="fas fa-exclamation-triangle me-1"></i>Low Attendance (<{{ threshold }}%)
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if report_type == 'class_wise' %}active fw-bold text-primary{% else %}text-secondary{% endif %}" href="{{ url_for('reports.index', type='class_wise', date_from=date_from, date_to=date_to) }}">
+          <i class="fas fa-chalkboard me-1"></i>Class-Wise Report
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if report_type == 'subject_wise' %}active fw-bold text-primary{% else %}text-secondary{% endif %}" href="{{ url_for('reports.index', type='subject_wise', date_from=date_from, date_to=date_to) }}">
+          <i class="fas fa-book me-1"></i>Subject-Wise Report
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card-body p-3 bg-light border-top">
+    <form method="GET" action="{{ url_for('reports.index') }}" class="row g-2 align-items-center">
+      <input type="hidden" name="type" value="{{ report_type }}">
+
+      <div class="col-md-3">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white text-muted">From</span>
+          <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+        </div>
+      </div>
+
+      <div class="col-md-3">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white text-muted">To</span>
+          <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+        </div>
+      </div>
+
+      {% if report_type in ['student_summary', 'low_attendance'] %}
+      <div class="col-md-2">
+        <select class="form-select form-select-sm" name="class_name">
+          <option value="">All Classes</option>
+          {% for c in class_options.keys() %}
+            <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <select class="form-select form-select-sm" name="section">
+          <option value="">All Sections</option>
+          <option value="A" {% if section_filter == 'A' %}selected{% endif %}>Section A</option>
+          <option value="B" {% if section_filter == 'B' %}selected{% endif %}>Section B</option>
+          <option value="C" {% if section_filter == 'C' %}selected{% endif %}>Section C</option>
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="col-md-2 d-flex gap-1">
+        <button type="submit" class="btn btn-primary btn-sm w-100">
+          <i class="fas fa-filter me-1"></i>Generate
+        </button>
+        <a href="{{ url_for('reports.index', type=report_type) }}" class="btn btn-light btn-sm border" title="Reset">
+          <i class="fas fa-redo"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Report Summary Metrics -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="stat-icon primary"><i class="fas fa-list-ol"></i></div>
+      <div>
+        <div class="stat-value">{{ total_items }}</div>
+        <div class="stat-label">Total Rows</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="stat-icon success"><i class="fas fa-percentage"></i></div>
+      <div>
+        <div class="stat-value text-success">{{ avg_percentage }}%</div>
+        <div class="stat-label">Average Attendance</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="stat-icon warning"><i class="fas fa-shield-alt"></i></div>
+      <div>
+        <div class="stat-value text-warning">{{ threshold }}%</div>
+        <div class="stat-label">Compliance Threshold</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-md-3">
+    <div class="card stat-card h-100">
+      <div class="stat-icon info"><i class="fas fa-calculator"></i></div>
+      <div>
+        <div class="stat-value text-info">Configured</div>
+        <div class="stat-label">Formula Weighting</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Report Table Presentation -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        {% if report_type in ['student_summary', 'low_attendance'] %}
+        <tr>
+          <th>Roll No</th>
+          <th>Student Name</th>
+          <th>Class & Section</th>
+          <th class="text-center">Total Sessions</th>
+          <th class="text-center text-success">Present</th>
+          <th class="text-center text-danger">Absent</th>
+          <th class="text-center text-warning">Late</th>
+          <th class="text-center text-info">Leave</th>
+          <th>Attendance Rate</th>
+          <th>Compliance Status</th>
+        </tr>
+        {% elif report_type == 'class_wise' %}
+        <tr>
+          <th>Class Name</th>
+          <th>Section</th>
+          <th>Class Teacher</th>
+          <th class="text-center">Total Sessions</th>
+          <th class="text-center text-success">Present</th>
+          <th class="text-center text-danger">Absent</th>
+          <th class="text-center text-warning">Late</th>
+          <th class="text-center text-info">Leave</th>
+          <th>Average Attendance</th>
+        </tr>
+        {% elif report_type == 'subject_wise' %}
+        <tr>
+          <th>Subject Name</th>
+          <th class="text-center">Total Sessions</th>
+          <th class="text-center text-success">Present</th>
+          <th class="text-center text-danger">Absent</th>
+          <th class="text-center text-warning">Late</th>
+          <th class="text-center text-info">Leave</th>
+          <th>Attendance Rate</th>
+        </tr>
+        {% endif %}
+      </thead>
+      <tbody>
+        {% if data %}
+          {% if report_type in ['student_summary', 'low_attendance'] %}
+            {% for r in data %}
+            <tr>
+              <td><strong>{{ r.roll_no }}</strong></td>
+              <td>
+                <a href="{{ url_for('student_profile.profile', student_id=r.student_id) }}" class="fw-bold text-dark text-decoration-none">
+                  {{ r.full_name }}
+                </a>
+              </td>
+              <td><span class="badge bg-light text-dark border">{{ r.class }} - Sec {{ r.section }}</span></td>
+              <td class="text-center fw-semibold">{{ r.total_sessions }}</td>
+              <td class="text-center text-success fw-bold">{{ r.present }}</td>
+              <td class="text-center text-danger fw-bold">{{ r.absent }}</td>
+              <td class="text-center text-warning fw-bold">{{ r.late }}</td>
+              <td class="text-center text-info fw-bold">{{ r.leave }}</td>
+              <td style="width: 160px;">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height: 6px;">
+                    <div class="progress-bar {% if r.is_low %}bg-danger{% else %}bg-success{% endif %}" style="width: {{ r.percentage }}%;"></div>
+                  </div>
+                  <span class="small fw-bold {% if r.is_low %}text-danger{% else %}text-success{% endif %}">{{ r.percentage }}%</span>
+                </div>
+              </td>
+              <td>
+                {% if r.is_low %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-exclamation-circle me-1"></i>Low Attendance</span>
+                {% else %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>Good Standing</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% elif report_type == 'class_wise' %}
+            {% for c in data %}
+            <tr>
+              <td><strong>{{ c.class_name }}</strong></td>
+              <td><span class="badge bg-light text-dark border">Section {{ c.section }}</span></td>
+              <td>{{ c.class_teacher or 'Unassigned' }}</td>
+              <td class="text-center fw-semibold">{{ c.total_records }}</td>
+              <td class="text-center text-success fw-bold">{{ c.present }}</td>
+              <td class="text-center text-danger fw-bold">{{ c.absent }}</td>
+              <td class="text-center text-warning fw-bold">{{ c.late }}</td>
+              <td class="text-center text-info fw-bold">{{ c.leave }}</td>
+              <td style="width: 180px;">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height: 6px;">
+                    <div class="progress-bar bg-primary" style="width: {{ c.percentage }}%;"></div>
+                  </div>
+                  <span class="small fw-bold text-primary">{{ c.percentage }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% elif report_type == 'subject_wise' %}
+            {% for s in data %}
+            <tr>
+              <td><strong>{{ s.subject }}</strong></td>
+              <td class="text-center fw-semibold">{{ s.total_records }}</td>
+              <td class="text-center text-success fw-bold">{{ s.present }}</td>
+              <td class="text-center text-danger fw-bold">{{ s.absent }}</td>
+              <td class="text-center text-warning fw-bold">{{ s.late }}</td>
+              <td class="text-center text-info fw-bold">{{ s.leave }}</td>
+              <td style="width: 180px;">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height: 6px;">
+                    <div class="progress-bar bg-primary" style="width: {{ s.percentage }}%;"></div>
+                  </div>
+                  <span class="small fw-bold text-primary">{{ s.percentage }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+        {% else %}
+          <tr>
+            <td colspan="10" class="text-center py-5 text-muted">
+              <i class="fas fa-file-alt fa-2x mb-3 text-secondary"></i>
+              <div>No attendance data found for the selected timeframe and filters.</div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

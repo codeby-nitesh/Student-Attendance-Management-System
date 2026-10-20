@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Records{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Attendance Log & Records</h2>
+    <div class="page-subtitle">Comprehensive searchable history of student attendance sessions</div>
+  </div>
+
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ url_for('attendance.mark') }}" class="btn btn-primary btn-sm">
+      <i class="fas fa-clipboard-check me-1"></i>Mark Attendance
+    </a>
+    <a href="{{ url_for('attendance.export_excel', date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter, student=student_search, subject=subject_filter, status=status_filter) }}" class="btn btn-outline-success btn-sm">
+      <i class="fas fa-file-excel me-1"></i>Export to Excel
+    </a>
+  </div>
+</div>
+
+<!-- Multi-Criteria Filter Bar -->
+<div class="card mb-4">
+  <div class="card-body p-3">
+    <form method="GET" action="{{ url_for('attendance.records') }}" class="row g-2 align-items-center">
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted mb-1">From Date</label>
+        <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted mb-1">To Date</label>
+        <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}">
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted mb-1">Class</label>
+        <select class="form-select form-select-sm" name="class_name">
+          <option value="">All Classes</option>
+          {% for c in class_options.keys() %}
+            <option value="{{ c }}" {% if class_filter == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-1">
+        <label class="form-label small fw-semibold text-muted mb-1">Sec</label>
+        <select class="form-select form-select-sm" name="section">
+          <option value="">All</option>
+          <option value="A" {% if section_filter == 'A' %}selected{% endif %}>A</option>
+          <option value="B" {% if section_filter == 'B' %}selected{% endif %}>B</option>
+          <option value="C" {% if section_filter == 'C' %}selected{% endif %}>C</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted mb-1">Status</label>
+        <select class="form-select form-select-sm" name="status">
+          <option value="">All Statuses</option>
+          <option value="Present" {% if status_filter == 'Present' %}selected{% endif %}>Present</option>
+          <option value="Absent" {% if status_filter == 'Absent' %}selected{% endif %}>Absent</option>
+          <option value="Late" {% if status_filter == 'Late' %}selected{% endif %}>Late</option>
+          <option value="Leave" {% if status_filter == 'Leave' %}selected{% endif %}>Leave</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-muted mb-1">Student</label>
+        <input type="text" class="form-control form-control-sm" name="student" value="{{ student_search }}" placeholder="Name or ID">
+      </div>
+
+      <div class="col-md-1 d-flex gap-1 align-self-end">
+        <button type="submit" class="btn btn-primary btn-sm w-100" title="Apply Filter">
+          <i class="fas fa-search"></i>
+        </button>
+        <a href="{{ url_for('attendance.records') }}" class="btn btn-light btn-sm border" title="Reset Filters">
+          <i class="fas fa-undo"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Attendance Records Table -->
+<div class="card">
+  <div class="card-header">
+    <span class="small text-muted">Showing <strong>{{ records|length }}</strong> of <strong>{{ total_count }}</strong> attendance entries</span>
+    <span class="badge bg-light text-dark border">Page {{ current_page }} / {{ total_pages }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Attendance ID</th>
+          <th>Date</th>
+          <th>Student Name</th>
+          <th>Class & Section</th>
+          <th>Subject & Period</th>
+          <th>Status</th>
+          <th>Remarks</th>
+          <th>Recorded By</th>
+          {% if session.get('role') in ['Admin', 'Teacher'] %}
+          <th class="text-end">Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% if records %}
+          {% for r in records %}
+          <tr>
+            <td><code class="text-primary fw-semibold">{{ r.Attendance_ID }}</code></td>
+            <td><strong>{{ r.Date }}</strong></td>
+            <td>
+              <a href="{{ url_for('student_profile.profile', student_id=r.Student_ID) }}" class="fw-bold text-dark text-decoration-none">
+                {{ r.Student_Name }}
+              </a>
+              <div class="small text-muted">{{ r.Student_ID }}</div>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ r.Class }} - Sec {{ r.Section }}</span></td>
+            <td>{{ r.Subject }} <small class="text-muted">({{ r.Period }})</small></td>
+            <td>{{ r.Status | status_badge | safe }}</td>
+            <td><small class="text-secondary">{{ r.Remarks or '—' }}</small></td>
+            <td><small class="text-muted">{{ r.Marked_By }}</small></td>
+            
+            {% if session.get('role') in ['Admin', 'Teacher'] %}
+            <td class="text-end">
+              <div class="btn-group btn-group-sm">
+                <!-- Edit Record Button -->
+                <button type="button" class="btn btn-light border text-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ r.Attendance_ID }}" title="Edit Record">
+                  <i class="fas fa-edit"></i>
+                </button>
+
+                <!-- Delete Record Button (Admin only) -->
+                {% if session.get('role') == 'Admin' %}
+                <button type="button" class="btn btn-light border text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ r.Attendance_ID }}" title="Delete Record">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+                {% endif %}
+              </div>
+
+              <!-- Edit Record Modal -->
+              <div class="modal fade" id="editModal{{ r.Attendance_ID }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header">
+                      <h5 class="modal-title"><i class="fas fa-edit text-primary me-2"></i>Edit Attendance Record</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('attendance.edit_record', attendance_id=r.Attendance_ID) }}" method="POST">
+                      <div class="modal-body">
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">Student</label>
+                          <input type="text" class="form-control bg-light" value="{{ r.Student_Name }} ({{ r.Student_ID }})" readonly>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">Session</label>
+                          <input type="text" class="form-control bg-light" value="{{ r.Date }} | {{ r.Class }} {{ r.Section }} | {{ r.Subject }} ({{ r.Period }})" readonly>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold text-danger">Attendance Status *</label>
+                          <select class="form-select" name="status" required>
+                            <option value="Present" {% if r.Status == 'Present' %}selected{% endif %}>Present</option>
+                            <option value="Absent" {% if r.Status == 'Absent' %}selected{% endif %}>Absent</option>
+                            <option value="Late" {% if r.Status == 'Late' %}selected{% endif %}>Late</option>
+                            <option value="Leave" {% if r.Status == 'Leave' %}selected{% endif %}>Leave</option>
+                          </select>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-semibold">Remarks</label>
+                          <input type="text" class="form-control" name="remarks" value="{{ r.Remarks or '' }}" placeholder="Enter updated remarks...">
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Delete Record Modal -->
+              {% if session.get('role') == 'Admin' %}
+              <div class="modal fade" id="deleteModal{{ r.Attendance_ID }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content text-start">
+                    <div class="modal-header border-0 pb-0">
+                      <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Delete Attendance Record</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                      <p>Delete attendance entry <strong>{{ r.Attendance_ID }}</strong> for <strong>{{ r.Student_Name }}</strong> on {{ r.Date }}?</p>
+                      <p class="small text-muted mb-0">This record will be safely removed from <code>attendance.xlsx</code> with an automatic backup preserved.</p>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                      <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                      <form action="{{ url_for('attendance.delete_record', attendance_id=r.Attendance_ID) }}" method="POST">
+                        <button type="submit" class="btn btn-danger btn-sm">Confirm Delete</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="9" class="text-center py-5 text-muted">
+              <i class="fas fa-clipboard-list fa-2x mb-3 text-secondary"></i>
+              <div>No attendance records match your filter criteria.</div>
+              <a href="{{ url_for('attendance.records') }}" class="btn btn-sm btn-link mt-2">Reset search filters</a>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Controls -->
+  {% if total_pages > 1 %}
+  <div class="card-footer bg-white d-flex align-items-center justify-content-between py-2">
+    <small class="text-muted">Showing page {{ current_page }} of {{ total_pages }}</small>
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('attendance.records', page=current_page-1, date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter, student=student_search, subject=subject_filter, status=status_filter) }}">Previous</a>
+      </li>
+      {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == current_page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('attendance.records', page=p, date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter, student=student_search, subject=subject_filter, status=status_filter) }}">{{ p }}</a>
+        </li>
+      {% endfor %}
+      <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('attendance.records', page=current_page+1, date_from=date_from, date_to=date_to, class_name=class_filter, section=section_filter, student=student_search, subject=subject_filter, status=status_filter) }}">Next</a>
+      </li>
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
